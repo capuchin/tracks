@@ -168,9 +168,9 @@ class Track < ActiveRecord::Base
   def process_ele
     # TODO test for has_ele
     GChartTrack.delete(g_chart_tracks)
-    if ! has_ele(self)
-      data = create_chart
-    end
+    #if ! has_ele(self)
+    data = create_chart
+    #end
     GChartTrack.new(:track_id => id, :data => data).save
     self.save
   end
