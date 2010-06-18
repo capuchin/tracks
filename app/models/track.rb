@@ -6,6 +6,10 @@ class Track < ActiveRecord::Base
   include TextHelper
   include Coords
 
+  require 'rubygems'
+  require 'json'
+  require 'net/http'
+
   belongs_to :area
   has_many :track_akas, :order => 'name'
   belongs_to :track_grade
@@ -14,6 +18,7 @@ class Track < ActiveRecord::Base
   has_many :track_connections
   has_many :track_reports
   has_many :g_map_tracks, :order => 'sequence'
+  has_many :g_chart_tracks
   # has_many :medias, :conditions => ["ref_type = ? AND ref_id = ?", 'track', id]
 
   before_validation       :fix_name
@@ -96,6 +101,7 @@ class Track < ActiveRecord::Base
       sub_name = placemark.search('name')
       sub_name = sub_name.nil? ? name : sub_name.inner_html
       next if placemark.search('linestring').empty?
+      coords = ""
       placemark.search('coordinates').each do |path|
         data = []
         path.inner_html.gsub(/\r/,'').gsub(/\n/,' ').split(" ").each do |coord|
@@ -104,16 +110,18 @@ class Track < ActiveRecord::Base
           lng,lat,alt = coord.split(",")
           # puts "#{lat}, #{lng}, #{alt}"
           data << [lat.to_f,lng.to_f]
+
+          coord = coord + ' '
+          coords += coord
         end
 
         encoder = GMapPolylineEncoder.new()
         result = encoder.encode(data)
 
-        len += calculate_path_length(data)/1000
-
-        # sub_name = name if sub_name.nil?
-
-        GMapTrack.new(:track_id => id, :points => result[:points], :levels => result[:levels], :num_levels => result[:numLevels], :zoom => result[:zoomFactor], :sequence => i, :name => sub_name).save!
+        seg_len = calculate_path_length(data)/1000
+        len += seg_len
+        
+        GMapTrack.new(:track_id => id, :points => result[:points], :coords => coords, :length => seg_len, :levels => result[:levels], :num_levels => result[:numLevels], :zoom => result[:zoomFactor], :sequence => i, :name => sub_name).save!
       end
     end
 
@@ -121,6 +129,119 @@ class Track < ActiveRecord::Base
     self.length_source = LENGTH_SOURCE_CALC
     self.length_adjust_percent = 5
     self.save!
+  end
+
+  def create_chart
+    # Simplest case, we just get ele from first track segment
+    samples = 100
+    points = self.g_map_tracks.first.points
+    ele = get_ele(points, samples)
+
+    data = "" 
+    max = ele['results'].first['elevation'] 
+    min = ele['results'].first['elevation']
+    ele['results'].each do |e|
+      data += e['elevation'].to_s
+      data += ","
+
+      if e['elevation'] < min
+        min = e['elevation']
+      end
+      if e['elevation'] > max
+        max = e['elevation']
+      end
+    end
+    data = data.chop
+    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=200x125&amp;chds=#{min},#{max}&amp;chd=t:#{data}\" alt=\"Chart\">"
+    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=224499&amp;chm=B,76A4FB,0,0,0\" alt=\"Chart\">"
+  end
+
+  # take polyline, number of samples and return json object
+  def get_ele(points, samples)
+    domain = "maps.google.com"
+    path = "/maps/api/elevation/json"
+    resp = Net::HTTP.get_response(domain, "#{path}?path=enc:#{points}&samples=#{samples}&sensor=false")
+    data = resp.body
+    result = JSON.parse(data)
+    #str = "domain#{path}?path=enc:#{points}&samples=#{samples}&sensor=false"
+  end
+
+  # if our kml has no ele data, look up ele and store it
+  def process_ele
+    # TODO test for has_ele
+    # TODO figure out why we can delete g_chart_tracks like is done for process_kml
+    GChartTrack.delete(g_chart_tracks)
+
+    data = create_chart
+  
+    c_saved = GChartTrack.new(:track_id => id, :data => data).save
+    t_saved  = self.save
+  
+    logger.error "====================="
+    logger.error "c_saved"
+    logger.error c_saved
+    logger.error "t_saved"
+    logger.error t_saved
+    logger.error YAML::dump(g_map_tracks) 
+  end
+    
+  # take a track, return elevation data as json object
+  def get_ele_custom(order)
+    #logger.error YAML::dump(self)
+    return if self.g_map_tracks.empty?
+
+    data = Array.new()
+    lat_lng = ""
+
+    # TODO 
+    # make configurable which segments and in what order
+    # 
+    #self.g_map_tracks.each do |gmt|
+    gmt = self.g_map_tracks.first
+    triplets = gmt.coords.split(" ")
+    triplets.each do |triplet|
+      #logger.error YAML::dump(triplet)
+      lng,lat,alt = triplet.split(",")
+      #logger.error "lat" 
+      #logger.error YAML::dump(lat)
+      data << [lat.to_f,lng.to_f]
+    end
+    logger.error("--- --- concat coords --- ---")
+    logger.error lat_lng
+    #logger.error(YAML::dump(data))
+
+    encoder = GMapPolylineEncoder.new()
+    polyline = encoder.encode(data)
+    points = "nra{F{qki`@OJ[HKHGJFb@"
+    logger.error YAML::dump(polyline[:points])
+
+    domain = "maps.google.com"
+    path = "/maps/api/elevation/json"
+    base_url = "http://maps.google.com/maps/api/elevation/json"
+    samples = "10"
+    #unsafe = URI::REGEXP::UNSAFE
+    #url = "#{base_url}?path=enc:#{polyline[:points]}&samples=#{samples}&sensor=#{sensor}"
+
+    resp = Net::HTTP.get_response(domain, "#{path}?path=enc:#{polyline[:points]}&samples=#{samples}&sensor=false")
+    data = resp.body
+    result = JSON.parse(data)
+
+    #data = "dummy"
+    data
+    #str = "http://#{domain}#{path}?path=enc:#{points}&samples=#{samples}&sensor=false"
+    #str
+  end
+
+  # create one polyline from multiple coord strings
+  # TODO exclude "spur lines"
+  def create_concat_polyline
+    
+  end
+
+  def fetch_chart
+    # if !has_ele(@track.g_map_track)
+    data = get_ele(@track)
+    GChartTrack.new(:track_id => id, :data => data).save!
   end
 
   # Track connections in array of [connecting_track_name,connection_id,track_id]

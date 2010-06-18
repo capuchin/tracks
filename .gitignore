@@ -5,3 +5,7 @@ db/schema.rb
 public/images/simple_captcha
 public/paths
 public/share
+config/database.yml
+config/environment.rb
+paths
+somefile

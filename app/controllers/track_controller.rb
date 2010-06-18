@@ -76,13 +76,17 @@ class TrackController < ApplicationController
   end
 
   def save_path
-    @track = Track.find(params[:id])
+   @track = Track.find(params[:id])
+ 
     begin
       File.open("#{@track.full_filename}.kml", "wb") do |f|
         f.write(params[:path][:filename].read)
+
       end
       @track.updated_by = current_user.id
       @track.process_kml_path(open("#{@track.full_filename}.kml") { |f| Hpricot(f) })
+      # go look up ele data, create chart, store it
+      @track.process_ele
     rescue Errno::ENOENT
       flash[:notice] = 'Problem uploading file. Please check your file and try again.'
     end

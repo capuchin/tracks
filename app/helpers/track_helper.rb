@@ -24,4 +24,23 @@ module TrackHelper
     end
     path + "processTrack();\n"
   end
+
+  # If any of the of the coords triples have a non-zero altitude, return true
+  def has_ele(track)
+    flag = false
+    return if track.g_map_tracks.empty?
+    track.g_map_tracks.each do |gmt| 
+      coord = gmt.coords.split(" ")
+      coord.each do |c|
+        lng,lat,alt = c.split(",")
+        if alt.to_f != 0
+          flag = true
+          break
+        end
+      end
+    end
+    flag
+  end
+
+
 end
