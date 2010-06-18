@@ -152,8 +152,7 @@ class Track < ActiveRecord::Base
       end
     end
     data = data.chop
-    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=200x125&amp;chds=#{min},#{max}&amp;chd=t:#{data}\" alt=\"Chart\">"
-    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=224499&amp;chm=B,76A4FB,0,0,0\" alt=\"Chart\">"
+    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
   end
 
   # take polyline, number of samples and return json object
@@ -163,26 +162,17 @@ class Track < ActiveRecord::Base
     resp = Net::HTTP.get_response(domain, "#{path}?path=enc:#{points}&samples=#{samples}&sensor=false")
     data = resp.body
     result = JSON.parse(data)
-    #str = "domain#{path}?path=enc:#{points}&samples=#{samples}&sensor=false"
   end
 
   # if our kml has no ele data, look up ele and store it
   def process_ele
     # TODO test for has_ele
-    # TODO figure out why we can delete g_chart_tracks like is done for process_kml
     GChartTrack.delete(g_chart_tracks)
-
-    data = create_chart
-  
-    c_saved = GChartTrack.new(:track_id => id, :data => data).save
-    t_saved  = self.save
-  
-    logger.error "====================="
-    logger.error "c_saved"
-    logger.error c_saved
-    logger.error "t_saved"
-    logger.error t_saved
-    logger.error YAML::dump(g_map_tracks) 
+    if ! has_ele(self)
+      data = create_chart
+    end
+    GChartTrack.new(:track_id => id, :data => data).save
+    self.save
   end
     
   # take a track, return elevation data as json object
