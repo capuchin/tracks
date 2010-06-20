@@ -1,5 +1,11 @@
 <div class='sub_form'>
 <%= form_tag({:action => 'save_path', :id => @track}, :multipart => true) %>
+  <p>Display an Elevation chart for this track
+    <%= check_box_tag 'display_chart', 1, true %>
+  </p>
+  <p>Does the KML file contain single or multiple line segments?
+    <%= select_tag 'type_of_chart', '<option>single</option><option>multiple</option>' %>
+  </p>
   <p>
     <%= file_field :path, :filename %>
   </p>

@@ -77,7 +77,7 @@
 </div>
 <div id="map"></div><p><input type="button" value="Reset map view" onclick="resetMap();"/></p>
 
-<% if ! @track.g_chart_tracks.empty? %>
+<% if ! @track.g_chart_tracks.empty? && @track.display_chart == true %>
 <%= heading "Elevation chart" %>
 <div id="chart"><%= @track.g_chart_tracks.first.data %></div>
 <% end %>

@@ -164,11 +164,29 @@ class Track < ActiveRecord::Base
     result = JSON.parse(data)
   end
 
+  # If any of the of the coords triples have a non-zero altitude, return true
+  def has_ele(track)
+    flag = false
+    return if track.g_map_tracks.empty?
+    track.g_map_tracks.each do |gmt|
+      coord = gmt.coords.split(" ")
+      coord.each do |c|
+        lng,lat,alt = c.split(",")
+        if alt.to_f != 0
+          flag = true
+          break
+        end
+      end
+    end
+    flag
+  end
+
+
+
   # if our kml has no ele data, look up ele and store it
   def process_ele
-    # TODO test for has_ele
     GChartTrack.delete(g_chart_tracks)
-    #if ! has_ele(self)
+    #if ! has_ele(g_map_tracks.first)
     data = create_chart
     #end
     GChartTrack.new(:track_id => id, :data => data).save
