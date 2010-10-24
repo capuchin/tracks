@@ -131,9 +131,10 @@ class Track < ActiveRecord::Base
     self.save!
   end
 
-  def create_chart
+  def get_chart_data(chart_type)
     # Simplest case, we just get ele from first track segment
     samples = 100
+
     points = self.g_map_tracks.first.points
     ele = get_ele(points, samples)
 
@@ -155,7 +156,146 @@ class Track < ActiveRecord::Base
     chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
   end
 
-  # take polyline, number of samples and return json object
+  def get_chart_data_multi(chart_type)
+    total_samples = 70
+#    total_length = self.g_map_tracks.map(&:length).sum
+# [0,1,2,3,5].inject(0) {|s,i| s+i}
+
+    total_length = 0
+    self.g_map_tracks.each do |t|
+      total_length += t.length
+    end
+  
+    # TODO just a loop shouldnt be a function
+    track_coords = join_coords
+
+    # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
+    sample_coords = get_samples(track_coords, total_length, total_samples)
+
+    logger.error "=== sampled_line ==="
+    logger.error sample_coords[0]
+
+    logger.error "=== sampled_cum_dist ==="
+    logger.error sample_coords[1]
+
+    # lat, lngs are in part of array
+    ele = get_ele_locations(sample_coords[0])
+
+    #logger.error ("========== elevation data ============")
+    #logger.error ( YAML::dump ele)
+
+    # Create x,y strings for graph 
+    # Get min/max elevation for graph height
+    data_y = "" 
+    max = ele['results'].first['elevation'] 
+    min = ele['results'].first['elevation']
+    ele['results'].each do |e|
+      data_y += e['elevation'].to_s
+      data_y += ","
+      if e['elevation'] < min
+        min = e['elevation']
+      end
+      if e['elevation'] > max
+        max = e['elevation']
+      end
+    end
+    data_y = data_y.chop
+    
+    # Get segment lengths and names, for graph
+    segment_lengths = ""
+    #segment_names = ""
+    segment_names_odd = ""
+    segment_names_even = ""
+    sum = 0
+    self.g_map_tracks.each_with_index do |t,i|
+      sum += t.length
+      segment_lengths << ((sum / total_length)*100).to_s + ','
+      #segment_names << t.name + "|"
+      if i%2 == 0
+        segment_names_odd << "|.|"
+        segment_names_even << t.name
+      end  
+      if i%2 != 0
+        segment_names_even << "|.|"
+        segment_names_odd << t.name
+      end
+    end
+    segment_lengths = segment_lengths.chop
+    #segment_names = segment_names.chop
+    segment_names_even = segment_names_even.chop 
+    segment_names_odd = segment_names_odd.reverse.chop.reverse # remove first char
+#logger.error "==== segments ===="
+#logger.error segment_names_odd
+#logger.error segment_names_even
+    # TODO automate this !
+    #segment_names_odd = "one|.|three|."
+    #segment_names_even = ".|two|.|four"
+    #segment_lengths = "10,20,30,40"
+    #s3 = "10,20,30,40"
+
+    #seg_pts = get_seg_pts
+
+    # get accum_dist of middle and end points of each segment
+    #segs = get_dists_for_segments
+    #logger.error "==== segments one  ===="
+    #logger.error ( YAML::dump segs)
+
+    # get index (nth) of middle and end points of each segment
+    #segs = get_indexes_for_segments(segs, sample_coords[1]) 
+    #logger.error "==== segments two ===="
+    #logger.error ( YAML::dump segs)
+
+    
+
+    #self.g_map_tracks.each do |t|
+
+
+    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
+    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
+    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{sample_coords[1]}|#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
+  end
+
+  # get accum_dist of middle and end points of each segment
+  def get_dists_for_segments
+    segs = Hash.new
+    start_dist = 0
+    self.g_map_tracks.each_with_index do |t,index|
+     segs[index] = {
+        'name' => t.name, 
+        'mid_dist' => start_dist + (t.length/2),
+        'mid_index' => -1, # -1 means not set
+        'end_dist' => start_dist + t.length,
+        'end_index' => -1
+      }
+      start_dist += t.length
+    end
+    segs
+  end
+
+  # get index (nth) of middle and end points of each segment
+  def get_indexes_for_segments(segs, points)
+    seg_index = 0
+    points.split(',').each_with_index do |point, point_index|
+      #logger.error "== point =="
+      #logger.error point.to_f
+      #logger.error "== mid_dist =="
+      #logger.error segs[seg_index]['mid_dist']
+
+      if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == -1
+        segs[seg_index]['mid_index'] = point_index
+        logger.error "found"
+      end  
+      if point.to_f >= segs[seg_index]['end_dist'] and segs[seg_index]['end_index'] == -1
+        segs[seg_index]['end_index'] = point_index
+        logger.error "found and inc'd"
+        seg_index +=1
+      end
+      break if seg_index-1 == segs.count and segs[seg_index-1]['end_index'] != -1
+    end
+    segs
+  end
+
+  # take polyline, number of samples. return elevations evenly spaced samples
   def get_ele(points, samples)
     domain = "maps.google.com"
     path = "/maps/api/elevation/json"
@@ -164,11 +304,78 @@ class Track < ActiveRecord::Base
     result = JSON.parse(data)
   end
 
+  # take points, return elevations for each point
+  def get_ele_locations(points)
+    domain = "maps.google.com"
+    path = "/maps/api/elevation/json"
+    resp = Net::HTTP.get_response(domain, "#{path}?locations=#{points}&sensor=false")
+    #resp = Net::HTTP.get_response(domain, "#{path}?locations=enc:#{points}&sensor=false")
+    logger.error("============= request =============")
+    logger.error("#{domain}#{path}?locations=#{points}&sensor=false")
+    data = resp.body
+    result = JSON.parse(data)
+  end
+
+  # Take gmap_track and join together the coord strings for each segment
+  # TODO remove?
+  def join_coords
+    coords_list = ""
+    self.g_map_tracks.each do |t|
+      coords_list << t.coords
+    end
+    coords_list
+  end
+
+  # Some encoded polylines are longer than uri limit (approx 2k chars)
+  # so we now only include points we want elevations for in our requests
+  # take a line, find evenly spaced points
+  # return samples (lat, lng, cum_dist)
+  def get_samples(line, length, samples)
+    sample_dist = 1000 * (length / samples)
+    sample_line = ""
+    sample_cum_dist = ""
+    # on first dist calc prev and current points will be the same
+    prev_lat,prev_lng = line.first.split(",")
+    dist = 0
+    cum_dist = 0
+    #total = line.split(' ').count - 1
+    line.split(' ').each_with_index do |point, i|
+      lat,lng,alt = point.split(",")
+      if i == 0
+        dist = 0
+      else
+        dist += calculate_path_length([[prev_lat.to_f, prev_lng.to_f], [lat.to_f, lng.to_f]])
+      end 
+      cum_dist += dist
+
+      # Take a sample at everytime we go over our sample distance (and sample 1st and last point)
+      if dist >= sample_dist or i == 0 #or i == total
+        # only do 6dp accuracy, otherwise urls too long
+        lat = sprintf "%.6f", lat
+        lng = sprintf "%.6f", lng
+        # sample lat,lng
+        sample_line << lng + ',' + lat + '|'
+
+        # sample dist and convert from 1234.5678 to 1.23
+        cum_dist_ks = cum_dist / 10000
+        cum_dist_1dp = sprintf "%.1f", cum_dist_ks
+        sample_cum_dist << cum_dist_1dp.to_s + ','
+        dist = 0
+      end
+      prev_lat = lat
+      prev_lng = lng
+    end
+    
+    sample_line = sample_line.chop()
+    sample_cum_dist = sample_cum_dist.chop()
+    result = [sample_line, sample_cum_dist]
+  end
+
   # If any of the of the coords triples have a non-zero altitude, return true
-  def has_ele(track)
+  def has_ele
     flag = false
-    return if track.g_map_tracks.empty?
-    track.g_map_tracks.each do |gmt|
+    return if self.g_map_tracks.empty?
+    self.g_map_tracks.each do |gmt|
       coord = gmt.coords.split(" ")
       coord.each do |c|
         lng,lat,alt = c.split(",")
@@ -181,14 +388,19 @@ class Track < ActiveRecord::Base
     flag
   end
 
-
-
   # if our kml has no ele data, look up ele and store it
   def process_ele
     GChartTrack.delete(g_chart_tracks)
-    #if ! has_ele(g_map_tracks.first)
-    data = create_chart
+    #if ! has_ele
+    #  data = get_chart_data(type_of_chart)
     #end
+    if self.type_of_chart == 'multiple'
+      data = get_chart_data_multi(type_of_chart)
+    else
+      data = get_chart_data(type_of_chart)
+    end
+      
+    # make create method for chart that does all the g_chart specific bits
     GChartTrack.new(:track_id => id, :data => data).save
     self.save
   end
@@ -238,18 +450,6 @@ class Track < ActiveRecord::Base
     data
     #str = "http://#{domain}#{path}?path=enc:#{points}&samples=#{samples}&sensor=false"
     #str
-  end
-
-  # create one polyline from multiple coord strings
-  # TODO exclude "spur lines"
-  def create_concat_polyline
-    
-  end
-
-  def fetch_chart
-    # if !has_ele(@track.g_map_track)
-    data = get_ele(@track)
-    GChartTrack.new(:track_id => id, :data => data).save!
   end
 
   # Track connections in array of [connecting_track_name,connection_id,track_id]
