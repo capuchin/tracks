@@ -9,6 +9,7 @@ class Track < ActiveRecord::Base
   require 'rubygems'
   require 'json'
   require 'net/http'
+  require 'htmlentities'
 
   belongs_to :area
   has_many :track_akas, :order => 'name'
@@ -265,18 +266,9 @@ class Track < ActiveRecord::Base
     logger.error seg_markers
     
 
-    #self.g_map_tracks.each do |t|
-
-
-    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
-
-    # works
-    # chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
-    #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{sample_coords[1]}|#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
-  
-  # TODO name each component
-  # eg. chs # Chart Size
   max += 150 # pad top of graph so theres room of labels
+  
+  # Build chart url
   chart_url         = "http://chart.apis.google.com/chart?"
   chart_type        = "cht=lc&amp;"
   chart_size        = "chs=582x150&amp;"
@@ -310,20 +302,22 @@ class Track < ActiveRecord::Base
   
   # Remove vowels from second and third part of names
   def abbreviate_track_name(name)
+    decoder = HTMLEntities.new
+    name = decoder.decode(name)
     name_split = name.split(' ')
     name_abrv = ''
-    name_split.each_with_index do |word, index|
-      if index = 0
+    name_split.each_with_index do |word,index|
+      if index == 0
         name_abrv = word
       end 
-      #if index >= 1
-      #  word = word.gsub('a', '')
-      #  word = word.gsub('e', '')
-      #  word = word.gsub('i', '')
-      #  word = word.gsub('o', '')
-      #  word = word.gsub('u', '')
-      #end
-      #name_abrv += ' ' + word
+      if index >= 1
+        word = word.gsub('a', '')
+        word = word.gsub('e', '')
+        word = word.gsub('i', '')
+        word = word.gsub('o', '')
+        word = word.gsub('u', '')
+        name_abrv += ' ' + word
+      end
     end
     name_abrv
   end
