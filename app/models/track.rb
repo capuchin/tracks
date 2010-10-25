@@ -345,9 +345,14 @@ class Track < ActiveRecord::Base
     points.split(',').each_with_index do |point, point_index|
       #logger.error "== point =="
       #logger.error point.to_f
+      #logger.error "== seg_index =="
+      #logger.error seg_index
       #logger.error "== mid_dist =="
       #logger.error segs[seg_index]['mid_dist']
 
+      #break if seg_index-1 == segs.count and segs[seg_index-1]['end_index'] != -1
+
+      break if segs[seg_index] == nil
       if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == -1
         segs[seg_index]['mid_index'] = point_index
         logger.error "found"
