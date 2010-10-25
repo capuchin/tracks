@@ -236,14 +236,14 @@ class Track < ActiveRecord::Base
     #seg_pts = get_seg_pts
 
     # get accum_dist of middle and end points of each segment
-    #segs = get_dists_for_segments
-    #logger.error "==== segments one  ===="
-    #logger.error ( YAML::dump segs)
+    segs = get_dists_for_segments
+    logger.error "==== segments one  ===="
+    logger.error ( YAML::dump segs)
 
     # get index (nth) of middle and end points of each segment
-    #segs = get_indexes_for_segments(segs, sample_coords[1]) 
-    #logger.error "==== segments two ===="
-    #logger.error ( YAML::dump segs)
+    segs_indexes = get_indexes_for_segments(segs, sample_coords[1]) 
+    logger.error "==== segments two ===="
+    logger.error ( YAML::dump segs)
 
     
 
@@ -251,8 +251,40 @@ class Track < ActiveRecord::Base
 
 
     #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
-    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
+
+    # works
+    # chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
     #chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{sample_coords[1]}|#{data_y}&amp;chco=229944&amp;chm=B,9ed472BB,0,0,0&amp;chxt=x,x,y,y,t,t&amp;chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;chxr=0,0,#{self.length}|2,#{min},#{max}&amp;chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;chxtc=4,-300&amp;chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000\" alt=\"Chart\">"
+  
+  # TODO name each component
+  # eg. chs # Chart Size
+  chart_url         = "http://chart.apis.google.com/chart?"
+  chart_type        = "cht=lc&amp;"
+  chart_size        = "chs=582x150&amp;"
+  data_scale        = "chds=#{min},#{max}&amp;"
+  data              = "chd=t:#{data_y}&amp;"
+  series_color      = "chco=229944&amp;"
+  line_fill         = "chm=B,9ed472BB,0,0,0&amp;"
+  #visible_axis      = "chxt=x,x,y,y,t,t&amp;"
+  visible_axis      = "chxt=x,x,y,y&amp;"
+  #axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;"
+  axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)|||&amp;"
+  axis_range        = "chxr=0,0,#{self.length}|2,#{min},#{max}&amp;"
+  bg_fill           = "chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;"
+  axis_tick_markers = "chxtc=4,-300&amp;"
+  label_positions   = "chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;"
+  label_styles      = "chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000"
+
+
+  #chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + axis_tick_markers + label_positions + label_styles + "\" alt=\"Chart\">"
+
+  chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
+ 
+  # chm=B,C5D4B5BB,0,0,0
+  #   v,0033FF,0,1,1,1
+  #   Afuckers,666666,0,2,15
+  #   v,0033FF,0,3,1,1
+
   end
 
   # get accum_dist of middle and end points of each segment
