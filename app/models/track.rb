@@ -241,10 +241,28 @@ class Track < ActiveRecord::Base
     logger.error ( YAML::dump segs)
 
     # get index (nth) of middle and end points of each segment
-    segs_indexes = get_indexes_for_segments(segs, sample_coords[1]) 
+    segs = get_indexes_for_segments(segs, sample_coords[1]) 
     logger.error "==== segments two ===="
     logger.error ( YAML::dump segs)
 
+    #     v,0033FF,0,10,1
+    #    ASummitcnnctn,666666,0,54,8
+    seg_markers = ''
+    segs.each do |segment|
+      s = segment.pop
+      #TODO remove -1 markers before this point
+      if s['mid_index'] == -1
+        s['mid_index'] = 0
+      end
+      if s['end_index'] == -1
+        s['end_index'] = 0
+      end 
+      seg_markers += '|v,229944,0,' + s['end_index'].to_s + ',1'
+      seg_markers += '|A' + abbreviate_track_name(s['name']) + ',666666,0,' + s['mid_index'].to_s  + ',8' # TODO abreviate name
+    end
+
+    logger.error "==== markers ===="
+    logger.error seg_markers
     
 
     #self.g_map_tracks.each do |t|
@@ -258,22 +276,25 @@ class Track < ActiveRecord::Base
   
   # TODO name each component
   # eg. chs # Chart Size
+  max += 150 # pad top of graph so theres room of labels
   chart_url         = "http://chart.apis.google.com/chart?"
   chart_type        = "cht=lc&amp;"
   chart_size        = "chs=582x150&amp;"
+  #chart_margin      = "chma=10,10,30,10&amp;" #l,r,t,b
   data_scale        = "chds=#{min},#{max}&amp;"
   data              = "chd=t:#{data_y}&amp;"
   series_color      = "chco=229944&amp;"
-  line_fill         = "chm=B,9ed472BB,0,0,0&amp;"
+  line_fill         = "chm=B,9ed472BB,0,0,0#{seg_markers}&amp;"
+  #line_fill         = "chm=B,9ed472BB,0,0,0|ASummitcnnctn,666666,0,54,8&amp;"
   #visible_axis      = "chxt=x,x,y,y,t,t&amp;"
   visible_axis      = "chxt=x,x,y,y&amp;"
   #axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;"
   axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)|||&amp;"
   axis_range        = "chxr=0,0,#{self.length}|2,#{min},#{max}&amp;"
-  bg_fill           = "chf=c,ls,90,d9f1ff55,0.25,CCDFFF55,0.25&amp;"
-  axis_tick_markers = "chxtc=4,-300&amp;"
-  label_positions   = "chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;"
-  label_styles      = "chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000"
+  bg_fill           = "chf=c,ls,90,d9f1ff85,0.25,CCDFFF85,0.25&amp;"
+  #axis_tick_markers = "chxtc=4,-300&amp;"
+  #label_positions   = "chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;"
+  #label_styles      = "chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000"
 
 
   #chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + axis_tick_markers + label_positions + label_styles + "\" alt=\"Chart\">"
@@ -285,6 +306,26 @@ class Track < ActiveRecord::Base
   #   Afuckers,666666,0,2,15
   #   v,0033FF,0,3,1,1
 
+  end
+  
+  # Remove vowels from second and third part of names
+  def abbreviate_track_name(name)
+    name_split = name.split(' ')
+    name_abrv = ''
+    name_split.each_with_index do |word, index|
+      if index = 0
+        name_abrv = word
+      end 
+      #if index >= 1
+      #  word = word.gsub('a', '')
+      #  word = word.gsub('e', '')
+      #  word = word.gsub('i', '')
+      #  word = word.gsub('o', '')
+      #  word = word.gsub('u', '')
+      #end
+      #name_abrv += ' ' + word
+    end
+    name_abrv
   end
 
   # get accum_dist of middle and end points of each segment
