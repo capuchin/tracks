@@ -157,10 +157,9 @@ class Track < ActiveRecord::Base
     chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
   end
 
+  # generate multi segment chart
   def get_chart_data_multi(chart_type)
     total_samples = 70
-#    total_length = self.g_map_tracks.map(&:length).sum
-# [0,1,2,3,5].inject(0) {|s,i| s+i}
 
     total_length = 0
     self.g_map_tracks.each do |t|
@@ -173,17 +172,8 @@ class Track < ActiveRecord::Base
     # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
     sample_coords = get_samples(track_coords, total_length, total_samples)
 
-    logger.error "=== sampled_line ==="
-    logger.error sample_coords[0]
-
-    logger.error "=== sampled_cum_dist ==="
-    logger.error sample_coords[1]
-
     # lat, lngs are in part of array
     ele = get_ele_locations(sample_coords[0])
-
-    #logger.error ("========== elevation data ============")
-    #logger.error ( YAML::dump ele)
 
     # Create x,y strings for graph 
     # Get min/max elevation for graph height
@@ -203,51 +193,39 @@ class Track < ActiveRecord::Base
     data_y = data_y.chop
     
     # Get segment lengths and names, for graph
-    segment_lengths = ""
-    #segment_names = ""
-    segment_names_odd = ""
-    segment_names_even = ""
-    sum = 0
-    self.g_map_tracks.each_with_index do |t,i|
-      sum += t.length
-      segment_lengths << ((sum / total_length)*100).to_s + ','
+    #segment_lengths = ""
+    #segment_names_odd = ""
+    #segment_names_even = ""
+    #sum = 0
+    #self.g_map_tracks.each_with_index do |t,i|
+    #  sum += t.length
+    #  segment_lengths << ((sum / total_length)*100).to_s + ','
       #segment_names << t.name + "|"
-      if i%2 == 0
-        segment_names_odd << "|.|"
-        segment_names_even << t.name
-      end  
-      if i%2 != 0
-        segment_names_even << "|.|"
-        segment_names_odd << t.name
-      end
-    end
-    segment_lengths = segment_lengths.chop
+    #  if i%2 == 0
+    #    segment_names_odd << "|.|"
+    #    segment_names_even << t.name
+    #  end  
+    #  if i%2 != 0
+    #    segment_names_even << "|.|"
+    #    segment_names_odd << t.name
+    #  end
+    #end
+    #segment_lengths = segment_lengths.chop
     #segment_names = segment_names.chop
-    segment_names_even = segment_names_even.chop 
-    segment_names_odd = segment_names_odd.reverse.chop.reverse # remove first char
-#logger.error "==== segments ===="
-#logger.error segment_names_odd
-#logger.error segment_names_even
-    # TODO automate this !
-    #segment_names_odd = "one|.|three|."
-    #segment_names_even = ".|two|.|four"
-    #segment_lengths = "10,20,30,40"
-    #s3 = "10,20,30,40"
-
-    #seg_pts = get_seg_pts
+    #segment_names_even = segment_names_even.chop 
+    #segment_names_odd = segment_names_odd.reverse.chop.reverse # remove first char
 
     # get accum_dist of middle and end points of each segment
     segs = get_dists_for_segments
-    logger.error "==== segments one  ===="
-    logger.error ( YAML::dump segs)
+    #logger.error "==== segments one  ===="
+    #logger.error ( YAML::dump segs)
 
     # get index (nth) of middle and end points of each segment
     segs = get_indexes_for_segments(segs, sample_coords[1]) 
-    logger.error "==== segments two ===="
-    logger.error ( YAML::dump segs)
+    #logger.error "==== segments two ===="
+    #logger.error ( YAML::dump segs)
 
-    #     v,0033FF,0,10,1
-    #    ASummitcnnctn,666666,0,54,8
+    # Build segment markers
     seg_markers = ''
     segs.each do |segment|
       s = segment.pop
@@ -262,13 +240,8 @@ class Track < ActiveRecord::Base
       seg_markers += '|A' + abbreviate_track_name(s['name']) + ',666666,0,' + s['mid_index'].to_s  + ',8' # TODO abreviate name
     end
 
-    logger.error "==== markers ===="
-    logger.error seg_markers
-    
-
+  # Construct chart url
   max += 150 # pad top of graph so theres room of labels
-  
-  # Build chart url
   chart_url         = "http://chart.apis.google.com/chart?"
   chart_type        = "cht=lc&amp;"
   chart_size        = "chs=582x150&amp;"
@@ -288,16 +261,7 @@ class Track < ActiveRecord::Base
   #label_positions   = "chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;"
   #label_styles      = "chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000"
 
-
-  #chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + axis_tick_markers + label_positions + label_styles + "\" alt=\"Chart\">"
-
   chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
- 
-  # chm=B,C5D4B5BB,0,0,0
-  #   v,0033FF,0,1,1,1
-  #   Afuckers,666666,0,2,15
-  #   v,0033FF,0,3,1,1
-
   end
   
   # Remove vowels from second and third part of names
@@ -343,14 +307,6 @@ class Track < ActiveRecord::Base
   def get_indexes_for_segments(segs, points)
     seg_index = 0
     points.split(',').each_with_index do |point, point_index|
-      #logger.error "== point =="
-      #logger.error point.to_f
-      #logger.error "== seg_index =="
-      #logger.error seg_index
-      #logger.error "== mid_dist =="
-      #logger.error segs[seg_index]['mid_dist']
-
-      #break if seg_index-1 == segs.count and segs[seg_index-1]['end_index'] != -1
 
       break if segs[seg_index] == nil
       if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == -1
