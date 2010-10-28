@@ -134,10 +134,42 @@ class Track < ActiveRecord::Base
 
   def get_chart_data(chart_type)
     # Simplest case, we just get ele from first track segment
-    samples = 100
+    #samples = 100
+    #points = self.g_map_tracks.first.points
+    #ele = get_ele(points, samples)
 
-    points = self.g_map_tracks.first.points
-    ele = get_ele(points, samples)
+  #def join_coords
+  #  coords_list = ""
+  #  self.g_map_tracks.each do |t|
+  #    coords_list << t.coords
+  #  end
+  #  coords_list
+  #end
+
+    total_samples = 70
+    total_length = 0
+    self.g_map_tracks.each do |t|
+      total_length += t.length
+    end
+
+    track_coords = join_coords
+    logger.error "====================="
+    logger.error "== coord list size =="
+    logger.error "====================="
+    logger.error join_coords.size
+    logger.error "====================="
+    logger.error "== coord list size =="
+    logger.error "====================="
+
+    self.g_map_tracks.first.coords.size
+    
+
+
+    # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
+    sample_coords = get_samples(track_coords, total_length, total_samples)
+    # lat, lngs are in part of array
+    ele = get_ele_locations(sample_coords[0])
+    
 
     data = "" 
     max = ele['results'].first['elevation'] 
@@ -154,13 +186,29 @@ class Track < ActiveRecord::Base
       end
     end
     data = data.chop
-    chart = "<img src=\"http://chart.apis.google.com/chart?cht=lc&amp;chs=582x150&amp;chds=#{min},#{max}&amp;chd=t:#{data}&amp;chco=229944&amp;chm=B,9ed472,0,0,0&amp;chxt=x,x,y,y&amp;chxl=1:||Dist (km)||3:||Ele (m)|&amp;chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;&amp;chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25\" alt=\"Chart\">"
+
+    # Chart components
+    max += 20 # pad graph
+    min -= 20
+    chart_url = "http://chart.apis.google.com/chart?"
+    chart_type = "cht=lc&amp;"
+    chart_size = "chs=582x150&amp;"
+    data_scale = "chds=#{min},#{max}&amp;"
+    data_series = "chd=t:#{data}&amp;"
+    series_color = "chco=229944&amp;"
+    line_fill = "chm=B,9ed472,0,0,0&amp;"
+    visible_axis = "chxt=x,x,y,y&amp;"
+    axis_lables = "chxl=1:||Dist (km)||3:||Ele (m)|&amp;"
+    axis_range = "chxr=0,0,#{self.g_map_tracks.first.length}|2,#{min},#{max}&amp;"
+    bg_fill = "chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25"
+
+    chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data_series + series_color + line_fill + visible_axis + \
+    axis_lables + axis_range + bg_fill + "\" alt=\"Chart\">"
   end
 
-  # generate multi segment chart
+  # Generate multi segment chart
   def get_chart_data_multi(chart_type)
     total_samples = 70
-
     total_length = 0
     self.g_map_tracks.each do |t|
       total_length += t.length
@@ -168,10 +216,8 @@ class Track < ActiveRecord::Base
   
     # TODO just a loop shouldnt be a function
     track_coords = join_coords
-
     # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
     sample_coords = get_samples(track_coords, total_length, total_samples)
-
     # lat, lngs are in part of array
     ele = get_ele_locations(sample_coords[0])
 
@@ -194,51 +240,33 @@ class Track < ActiveRecord::Base
 
     # get accum_dist of middle and end points of each segment
     segs = get_dists_for_segments
-    logger.error "==== segments one  ===="
-    logger.error ( YAML::dump segs)
-
     # get index (nth) of middle and end points of each segment
     segs = get_indexes_for_segments(segs, sample_coords[1]) 
-    logger.error "==== segments two ===="
-    logger.error ( YAML::dump segs)
 
     # Build segment markers
     seg_markers = ''
     segs.each do |segment|
       s = segment.pop
-      #TODO remove -1 markers before this point
-      if s['mid_index'] == -1
-        s['mid_index'] = 0
-      end
-      if s['end_index'] == -1
-        s['end_index'] = 0
-      end 
       seg_markers += '|v,229944,0,' + s['end_index'].to_s + ',1'
-      seg_markers += '|A' + abbreviate_track_name(s['name']) + ',666666,0,' + s['mid_index'].to_s  + ',8' # TODO abreviate name
+      seg_markers += '|A' + abbreviate_track_name(s['name']) + ',666666,0,' + s['mid_index'].to_s  + ',8'
     end
 
-  # Construct chart url
-  max += 150 # pad top of graph so theres room of labels
-  chart_url         = "http://chart.apis.google.com/chart?"
-  chart_type        = "cht=lc&amp;"
-  chart_size        = "chs=582x150&amp;"
-  #chart_margin      = "chma=10,10,30,10&amp;" #l,r,t,b
-  data_scale        = "chds=#{min},#{max}&amp;"
-  data              = "chd=t:#{data_y}&amp;"
-  series_color      = "chco=229944&amp;"
-  line_fill         = "chm=B,9ed472BB,0,0,0#{seg_markers}&amp;"
-  #line_fill         = "chm=B,9ed472BB,0,0,0|ASummitcnnctn,666666,0,54,8&amp;"
-  #visible_axis      = "chxt=x,x,y,y,t,t&amp;"
-  visible_axis      = "chxt=x,x,y,y&amp;"
-  #axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)||4:|#{segment_names_odd}|5:|#{segment_names_even}&amp;"
-  axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)|||&amp;"
-  axis_range        = "chxr=0,0,#{self.length}|2,#{min},#{max}&amp;"
-  bg_fill           = "chf=c,ls,90,d9f1ff85,0.25,CCDFFF85,0.25&amp;"
-  #axis_tick_markers = "chxtc=4,-300&amp;"
-  #label_positions   = "chxp=4,#{segment_lengths}|5,#{segment_lengths}&amp;"
-  #label_styles      = "chxs=4,000000,10,1,l,000000|5,000000,10,1,l,000000"
+    # Construct chart url
+    max += 150 # pad top of graph so theres room of labels
+    min -= 20 # pad bottom
+    chart_url         = "http://chart.apis.google.com/chart?"
+    chart_type        = "cht=lc&amp;"
+    chart_size        = "chs=582x150&amp;"
+    data_scale        = "chds=#{min},#{max}&amp;"
+    data              = "chd=t:#{data_y}&amp;"
+    series_color      = "chco=229944&amp;"
+    line_fill         = "chm=B,9ed472BB,0,0,0#{seg_markers}&amp;"
+    visible_axis      = "chxt=x,x,y,y&amp;"
+    axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)|||&amp;"
+    axis_range        = "chxr=0,0,#{self.length}|2,#{min},#{max}&amp;"
+    bg_fill           = "chf=c,ls,90,d9f1ff85,0.25,CCDFFF85,0.25&amp;"
 
-  chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
+    chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
   end
   
   # Remove vowels from second and third part of names
@@ -271,31 +299,38 @@ class Track < ActiveRecord::Base
       segs[index] = {
         'name' => t.name, 
         'mid_dist' => start_dist + (t.length/2),
-        'mid_index' => -1, # -1 means not set
+        'mid_index' => 0, 
         'end_dist' => start_dist + t.length,
-        'end_index' => -1
+        'end_index' => 0 
       }
       start_dist += t.length
     end
     segs
   end
 
-  # get index (nth) of middle and end points of each segment
+  # Get indexes of middle and end points of each segment
   def get_indexes_for_segments(segs, points)
     seg_index = 0
+    point_index_max = 0
     points.split(',').each_with_index do |point, point_index|
-
+      point_index_max = point_index
+      # Stop if we have gone off the end
       break if segs[seg_index] == nil
-      if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == -1
+      # If we are past the mid point of our segment, record index of that point
+      if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
         segs[seg_index]['mid_index'] = point_index
-        logger.error "found"
-      end  
-      if point.to_f >= segs[seg_index]['end_dist'] and segs[seg_index]['end_index'] == -1
+      end
+      # If we are past the end point of our segment, record index of that point
+      if point.to_f >= segs[seg_index]['end_dist'] and segs[seg_index]['end_index'] == 0
         segs[seg_index]['end_index'] = point_index
-        logger.error "found and inc'd"
         seg_index +=1
       end
-      break if seg_index-1 == segs.count and segs[seg_index-1]['end_index'] != -1
+    end
+    # make sure that the last end_index always matches the index of the last point in the segment
+    if segs[seg_index] == nil
+      segs[seg_index-1]['end_index'] = point_index_max
+    else
+      segs[seg_index]['end_index'] = point_index_max
     end
     segs
   end
@@ -315,14 +350,15 @@ class Track < ActiveRecord::Base
     path = "/maps/api/elevation/json"
     resp = Net::HTTP.get_response(domain, "#{path}?locations=#{points}&sensor=false")
     #resp = Net::HTTP.get_response(domain, "#{path}?locations=enc:#{points}&sensor=false")
-    logger.error("============= request =============")
-    logger.error("#{domain}#{path}?locations=#{points}&sensor=false")
+    #logger.error("============= request =============")
+    #logger.error("#{domain}#{path}?locations=#{points}&sensor=false")
     data = resp.body
     result = JSON.parse(data)
   end
 
   # Take gmap_track and join together the coord strings for each segment
   # TODO remove?
+  # FIXME coords arent available until after they're stored, causes error on first load?
   def join_coords
     coords_list = ""
     self.g_map_tracks.each do |t|
