@@ -1,6 +1,6 @@
 class ChangeCoordsColumnType < ActiveRecord::Migration
   def self.up
-    change_column :g_map_tracks, :coords, :text
+    change_column :g_map_tracks, :coords, :mediumtext
   end
 
   def self.down
