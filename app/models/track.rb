@@ -191,39 +191,16 @@ class Track < ActiveRecord::Base
       end
     end
     data_y = data_y.chop
-    
-    # Get segment lengths and names, for graph
-    #segment_lengths = ""
-    #segment_names_odd = ""
-    #segment_names_even = ""
-    #sum = 0
-    #self.g_map_tracks.each_with_index do |t,i|
-    #  sum += t.length
-    #  segment_lengths << ((sum / total_length)*100).to_s + ','
-      #segment_names << t.name + "|"
-    #  if i%2 == 0
-    #    segment_names_odd << "|.|"
-    #    segment_names_even << t.name
-    #  end  
-    #  if i%2 != 0
-    #    segment_names_even << "|.|"
-    #    segment_names_odd << t.name
-    #  end
-    #end
-    #segment_lengths = segment_lengths.chop
-    #segment_names = segment_names.chop
-    #segment_names_even = segment_names_even.chop 
-    #segment_names_odd = segment_names_odd.reverse.chop.reverse # remove first char
 
     # get accum_dist of middle and end points of each segment
     segs = get_dists_for_segments
-    #logger.error "==== segments one  ===="
-    #logger.error ( YAML::dump segs)
+    logger.error "==== segments one  ===="
+    logger.error ( YAML::dump segs)
 
     # get index (nth) of middle and end points of each segment
     segs = get_indexes_for_segments(segs, sample_coords[1]) 
-    #logger.error "==== segments two ===="
-    #logger.error ( YAML::dump segs)
+    logger.error "==== segments two ===="
+    logger.error ( YAML::dump segs)
 
     # Build segment markers
     seg_markers = ''
@@ -291,7 +268,7 @@ class Track < ActiveRecord::Base
     segs = Hash.new
     start_dist = 0
     self.g_map_tracks.each_with_index do |t,index|
-     segs[index] = {
+      segs[index] = {
         'name' => t.name, 
         'mid_dist' => start_dist + (t.length/2),
         'mid_index' => -1, # -1 means not set
