@@ -145,7 +145,6 @@ class Track < ActiveRecord::Base
   #  end
   #  coords_list
   #end
-
     total_samples = 70
     total_length = 0
     self.g_map_tracks.each do |t|
@@ -157,10 +156,10 @@ class Track < ActiveRecord::Base
     logger.error "== coord list size =="
     logger.error "====================="
     logger.error join_coords.size
-    logger.error "====================="
-    logger.error "== coord list size =="
-    logger.error "====================="
 
+    logger.error "====================="
+    logger.error "== coord first size =="
+    logger.error "====================="
     self.g_map_tracks.first.coords.size
     
 
@@ -214,11 +213,17 @@ class Track < ActiveRecord::Base
       total_length += t.length
     end
   
-    # TODO just a loop shouldnt be a function
+    # joins coords of segments from g_map_track table into a big string
     track_coords = join_coords
-    # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
+    # Sample_coords contains lat,lngs and accum_dist ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
     sample_coords = get_samples(track_coords, total_length, total_samples)
-    # lat, lngs are in part of array
+
+    logger.error("=== tot length ===")
+    logger.error(total_length)
+    logger.error("=== sample coords ===")
+    logger.error(YAML::dump(sample_coords[1].split(',').last))    
+
+    # Get elevation data from lat,lngs
     ele = get_ele_locations(sample_coords[0])
 
     # Create x,y strings for graph 
@@ -239,9 +244,17 @@ class Track < ActiveRecord::Base
     data_y = data_y.chop
 
     # get accum_dist of middle and end points of each segment
-    segs = get_dists_for_segments
+    segs = get_dists_for_segments(total_length, sample_coords[1].split(',').last) # Use length as calculated from segments and from whole line
     # get index (nth) of middle and end points of each segment
     segs = get_indexes_for_segments(segs, sample_coords[1]) 
+    #logger.error "== n lat,lngs =="
+    #logger.error sample_coords[0].split('|').size
+
+    #logger.error "== n accm dist =="
+    #logger.error sample_coords[1].split(',').size
+
+    #logger.error "== segs =="
+    #logger.error(YAML::dump segs)    
 
     # Build segment markers
     seg_markers = ''
@@ -252,11 +265,11 @@ class Track < ActiveRecord::Base
     end
 
     # Construct chart url
-    max += 150 # pad top of graph so theres room of labels
+    max += 200 # pad top of graph so theres room of labels
     min -= 20 # pad bottom
     chart_url         = "http://chart.apis.google.com/chart?"
     chart_type        = "cht=lc&amp;"
-    chart_size        = "chs=582x150&amp;"
+    chart_size        = "chs=582x200&amp;"
     data_scale        = "chds=#{min},#{max}&amp;"
     data              = "chd=t:#{data_y}&amp;"
     series_color      = "chco=229944&amp;"
@@ -269,10 +282,11 @@ class Track < ActiveRecord::Base
     chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
   end
   
-  # Remove vowels from second and third part of names
+  # Only use first and last letters for second and thrid words in name
+  # eg. Big ring boulevard -> Big rg bd
   def abbreviate_track_name(name)
     decoder = HTMLEntities.new
-    name = decoder.decode(name)
+    name = decoder.decode(name) # convert &apos; to ' etc
     name_split = name.split(' ')
     name_abrv = ''
     name_split.each_with_index do |word,index|
@@ -280,11 +294,7 @@ class Track < ActiveRecord::Base
         name_abrv = word
       end 
       if index >= 1
-        word = word.gsub('a', '')
-        word = word.gsub('e', '')
-        word = word.gsub('i', '')
-        word = word.gsub('o', '')
-        word = word.gsub('u', '')
+        word = word.slice(0, 1) + word.slice(word.length - 1, word.length)
         name_abrv += ' ' + word
       end
     end
@@ -292,15 +302,19 @@ class Track < ActiveRecord::Base
   end
 
   # get accum_dist of middle and end points of each segment
-  def get_dists_for_segments
+  def get_dists_for_segments(tot_from_segs, tot_from_line)
     segs = Hash.new
     start_dist = 0
     self.g_map_tracks.each_with_index do |t,index|
+      ratio = t.length / tot_from_segs.to_f
+      rel_length = ratio * tot_from_line.to_f
       segs[index] = {
         'name' => t.name, 
-        'mid_dist' => start_dist + (t.length/2),
+        #'mid_dist' => start_dist + (t.length/2),
+        'mid_dist' => start_dist + (rel_length / 2),
         'mid_index' => 0, 
-        'end_dist' => start_dist + t.length,
+        #'end_dist' => start_dist + t.length,
+        'end_dist' => start_dist + rel_length,
         'end_index' => 0 
       }
       start_dist += t.length
@@ -317,12 +331,15 @@ class Track < ActiveRecord::Base
       # Stop if we have gone off the end
       break if segs[seg_index] == nil
       # If we are past the mid point of our segment, record index of that point
+      #if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
       if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
         segs[seg_index]['mid_index'] = point_index
+        logger.error "found mid @dist " + segs[seg_index]['mid_dist'].to_s + " index = " + point_index.to_s
       end
       # If we are past the end point of our segment, record index of that point
       if point.to_f >= segs[seg_index]['end_dist'] and segs[seg_index]['end_index'] == 0
         segs[seg_index]['end_index'] = point_index
+        logger.error "found end @dist " + segs[seg_index]['end_dist'].to_s + " index = " + point_index.to_s
         seg_index +=1
       end
     end
