@@ -620,10 +620,6 @@ h1 {
   border: 1px solid black;
 }
 
-#map div {
-  max-width: 582px;
-}
-
 #map div span {
   white-space: normal;
 }
@@ -660,6 +656,8 @@ h1 {
 #labelContainer {
   position: relative;
   z-index: 1;
+	top: 0px;
+	left: 0px;
 }
 
 p.notice {
