@@ -138,13 +138,6 @@ class Track < ActiveRecord::Base
     #points = self.g_map_tracks.first.points
     #ele = get_ele(points, samples)
 
-  #def join_coords
-  #  coords_list = ""
-  #  self.g_map_tracks.each do |t|
-  #    coords_list << t.coords
-  #  end
-  #  coords_list
-  #end
     total_samples = 70
     total_length = 0
     self.g_map_tracks.each do |t|
@@ -212,16 +205,13 @@ class Track < ActiveRecord::Base
     self.g_map_tracks.each do |t|
       total_length += t.length
     end
-  
+
+		# FIXME nil error on first upload  
     # joins coords of segments from g_map_track table into a big string
     track_coords = join_coords
-    # Sample_coords contains lat,lngs and accum_dist ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
-    sample_coords = get_samples(track_coords, total_length, total_samples)
 
-    logger.error("=== tot length ===")
-    logger.error(total_length)
-    logger.error("=== sample coords ===")
-    logger.error(YAML::dump(sample_coords[1].split(',').last))    
+    # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
+    sample_coords = get_samples(track_coords, total_length, total_samples)
 
     # Get elevation data from lat,lngs
     ele = get_ele_locations(sample_coords[0])
@@ -247,14 +237,6 @@ class Track < ActiveRecord::Base
     segs = get_dists_for_segments(total_length, sample_coords[1].split(',').last) # Use length as calculated from segments and from whole line
     # get index (nth) of middle and end points of each segment
     segs = get_indexes_for_segments(segs, sample_coords[1]) 
-    #logger.error "== n lat,lngs =="
-    #logger.error sample_coords[0].split('|').size
-
-    #logger.error "== n accm dist =="
-    #logger.error sample_coords[1].split(',').size
-
-    #logger.error "== segs =="
-    #logger.error(YAML::dump segs)    
 
     # Build segment markers
     seg_markers = ''
@@ -317,7 +299,8 @@ class Track < ActiveRecord::Base
         'end_dist' => start_dist + rel_length,
         'end_index' => 0 
       }
-      start_dist += t.length
+      #start_dist += t.length
+			start_dist += rel_length
     end
     segs
   end
@@ -331,7 +314,6 @@ class Track < ActiveRecord::Base
       # Stop if we have gone off the end
       break if segs[seg_index] == nil
       # If we are past the mid point of our segment, record index of that point
-      #if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
       if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
         segs[seg_index]['mid_index'] = point_index
         logger.error "found mid @dist " + segs[seg_index]['mid_dist'].to_s + " index = " + point_index.to_s
@@ -366,9 +348,6 @@ class Track < ActiveRecord::Base
     domain = "maps.google.com"
     path = "/maps/api/elevation/json"
     resp = Net::HTTP.get_response(domain, "#{path}?locations=#{points}&sensor=false")
-    #resp = Net::HTTP.get_response(domain, "#{path}?locations=enc:#{points}&sensor=false")
-    #logger.error("============= request =============")
-    #logger.error("#{domain}#{path}?locations=#{points}&sensor=false")
     data = resp.body
     result = JSON.parse(data)
   end
@@ -463,6 +442,7 @@ class Track < ActiveRecord::Base
     self.save
   end
     
+	# TODO remove as unused?
   # take a track, return elevation data as json object
   def get_ele_custom(order)
     #logger.error YAML::dump(self)
