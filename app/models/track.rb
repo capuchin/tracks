@@ -92,7 +92,17 @@ class Track < ActiveRecord::Base
   end
 
   def process_kml_path(doc)
-    GMapTrack.delete(g_map_tracks)
+		debugger
+		logger.error "== gmap tracks before =="
+		logger.error(g_map_tracks.length)
+
+    GMapTrack.delete_all(["track_id = ?", id])
+		#self.g_map_tracks.delete
+
+		logger.error "== gmap tracks after =="
+		logger.error(g_map_tracks.length)
+
+		#GMapTrack.delete(:conditions => track_id = self.id)
     main_name = doc.search('name').first
     main_name = main_name.nil? ? name : main_name.inner_html
     len = 0.0
@@ -125,44 +135,24 @@ class Track < ActiveRecord::Base
         GMapTrack.new(:track_id => id, :points => result[:points], :coords => coords, :length => seg_len, :levels => result[:levels], :num_levels => result[:numLevels], :zoom => result[:zoomFactor], :sequence => i, :name => sub_name).save!
       end
     end
-
     self.length = len
     self.length_source = LENGTH_SOURCE_CALC
     self.length_adjust_percent = 5
     self.save!
   end
 
-  def get_chart_data(chart_type)
-    # Simplest case, we just get ele from first track segment
-    #samples = 100
-    #points = self.g_map_tracks.first.points
-    #ele = get_ele(points, samples)
-
+  def get_chart_data
     total_samples = 70
     total_length = 0
-    self.g_map_tracks.each do |t|
+    g_map_tracks.each do |t|
       total_length += t.length
     end
 
-    track_coords = join_coords
-    logger.error "====================="
-    logger.error "== coord list size =="
-    logger.error "====================="
-    logger.error join_coords.size
+		sample_coords = get_samples(self.g_map_tracks.first.coords, total_length, total_samples)
 
-    logger.error "====================="
-    logger.error "== coord first size =="
-    logger.error "====================="
-    self.g_map_tracks.first.coords.size
-    
-
-
-    # sample_coords now has cum_dist attached ['lat1,lng1|lat2,lng2'][cum_dist1|cum_dist2]
-    sample_coords = get_samples(track_coords, total_length, total_samples)
     # lat, lngs are in part of array
     ele = get_ele_locations(sample_coords[0])
     
-
     data = "" 
     max = ele['results'].first['elevation'] 
     min = ele['results'].first['elevation']
@@ -199,14 +189,14 @@ class Track < ActiveRecord::Base
   end
 
   # Generate multi segment chart
-  def get_chart_data_multi(chart_type)
+  def get_chart_data_multi
+		#self.reload
     total_samples = 70
     total_length = 0
     self.g_map_tracks.each do |t|
       total_length += t.length
     end
 
-		# FIXME nil error on first upload  
     # joins coords of segments from g_map_track table into a big string
     track_coords = join_coords
 
@@ -243,7 +233,7 @@ class Track < ActiveRecord::Base
     segs.each do |segment|
       s = segment.pop
       seg_markers += '|v,229944,0,' + s['end_index'].to_s + ',1'
-      seg_markers += '|A' + abbreviate_track_name(s['name']) + ',666666,0,' + s['mid_index'].to_s  + ',8'
+      seg_markers += '|A' + abbreviate_track_name(s['name']) + ',000000,0,' + s['mid_index'].to_s  + ',8'
     end
 
     # Construct chart url
@@ -255,11 +245,11 @@ class Track < ActiveRecord::Base
     data_scale        = "chds=#{min},#{max}&amp;"
     data              = "chd=t:#{data_y}&amp;"
     series_color      = "chco=229944&amp;"
-    line_fill         = "chm=B,9ed472BB,0,0,0#{seg_markers}&amp;"
+    line_fill         = "chm=B,9ed472,0,0,0#{seg_markers}&amp;"
     visible_axis      = "chxt=x,x,y,y&amp;"
     axis_labels       = "chxl=1:||Dist (km)||3:||Ele (m)|||&amp;"
     axis_range        = "chxr=0,0,#{self.length}|2,#{min},#{max}&amp;"
-    bg_fill           = "chf=c,ls,90,d9f1ff85,0.25,CCDFFF85,0.25&amp;"
+    bg_fill 					= "chf=c,ls,90,d9f1ff,0.25,CCDFFF,0.25"
 
     chart = "<img src=\"" + chart_url + chart_type + chart_size + data_scale + data + series_color + line_fill + visible_axis + axis_labels + axis_range + bg_fill + "\" alt=\"Chart\">"
   end
@@ -292,19 +282,19 @@ class Track < ActiveRecord::Base
       rel_length = ratio * tot_from_line.to_f
       segs[index] = {
         'name' => t.name, 
-        #'mid_dist' => start_dist + (t.length/2),
         'mid_dist' => start_dist + (rel_length / 2),
         'mid_index' => 0, 
-        #'end_dist' => start_dist + t.length,
         'end_dist' => start_dist + rel_length,
         'end_index' => 0 
       }
-      #start_dist += t.length
 			start_dist += rel_length
     end
     segs
   end
 
+	# TODO shouldnt I just work out index based on number of samples and propotion of track a segment represents?
+	# eg.  4km out of 20km  and 10 samples would be 2nd point.
+	# meh
   # Get indexes of middle and end points of each segment
   def get_indexes_for_segments(segs, points)
     seg_index = 0
@@ -316,12 +306,10 @@ class Track < ActiveRecord::Base
       # If we are past the mid point of our segment, record index of that point
       if point.to_f >= segs[seg_index]['mid_dist'] and segs[seg_index]['mid_index'] == 0
         segs[seg_index]['mid_index'] = point_index
-        logger.error "found mid @dist " + segs[seg_index]['mid_dist'].to_s + " index = " + point_index.to_s
       end
       # If we are past the end point of our segment, record index of that point
       if point.to_f >= segs[seg_index]['end_dist'] and segs[seg_index]['end_index'] == 0
         segs[seg_index]['end_index'] = point_index
-        logger.error "found end @dist " + segs[seg_index]['end_dist'].to_s + " index = " + point_index.to_s
         seg_index +=1
       end
     end
@@ -353,8 +341,6 @@ class Track < ActiveRecord::Base
   end
 
   # Take gmap_track and join together the coord strings for each segment
-  # TODO remove?
-  # FIXME coords arent available until after they're stored, causes error on first load?
   def join_coords
     coords_list = ""
     self.g_map_tracks.each do |t|
@@ -428,13 +414,15 @@ class Track < ActiveRecord::Base
   # if our kml has no ele data, look up ele and store it
   def process_ele
     GChartTrack.delete(g_chart_tracks)
+		# TODO use elevation from kml files
     #if ! has_ele
     #  data = get_chart_data(type_of_chart)
     #end
+		self.reload
     if self.type_of_chart == 'multiple'
-      data = get_chart_data_multi(type_of_chart)
+      data = get_chart_data_multi
     else
-      data = get_chart_data(type_of_chart)
+      data = get_chart_data
     end
       
     # make create method for chart that does all the g_chart specific bits
@@ -442,54 +430,6 @@ class Track < ActiveRecord::Base
     self.save
   end
     
-	# TODO remove as unused?
-  # take a track, return elevation data as json object
-  def get_ele_custom(order)
-    #logger.error YAML::dump(self)
-    return if self.g_map_tracks.empty?
-
-    data = Array.new()
-    lat_lng = ""
-
-    # TODO 
-    # make configurable which segments and in what order
-    # 
-    #self.g_map_tracks.each do |gmt|
-    gmt = self.g_map_tracks.first
-    triplets = gmt.coords.split(" ")
-    triplets.each do |triplet|
-      #logger.error YAML::dump(triplet)
-      lng,lat,alt = triplet.split(",")
-      #logger.error "lat" 
-      #logger.error YAML::dump(lat)
-      data << [lat.to_f,lng.to_f]
-    end
-    logger.error("--- --- concat coords --- ---")
-    logger.error lat_lng
-    #logger.error(YAML::dump(data))
-
-    encoder = GMapPolylineEncoder.new()
-    polyline = encoder.encode(data)
-    points = "nra{F{qki`@OJ[HKHGJFb@"
-    logger.error YAML::dump(polyline[:points])
-
-    domain = "maps.google.com"
-    path = "/maps/api/elevation/json"
-    base_url = "http://maps.google.com/maps/api/elevation/json"
-    samples = "10"
-    #unsafe = URI::REGEXP::UNSAFE
-    #url = "#{base_url}?path=enc:#{polyline[:points]}&samples=#{samples}&sensor=#{sensor}"
-
-    resp = Net::HTTP.get_response(domain, "#{path}?path=enc:#{polyline[:points]}&samples=#{samples}&sensor=false")
-    data = resp.body
-    result = JSON.parse(data)
-
-    #data = "dummy"
-    data
-    #str = "http://#{domain}#{path}?path=enc:#{points}&samples=#{samples}&sensor=false"
-    #str
-  end
-
   # Track connections in array of [connecting_track_name,connection_id,track_id]
   def get_connections
     connections = []

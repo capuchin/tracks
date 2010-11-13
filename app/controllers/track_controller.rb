@@ -88,6 +88,7 @@ class TrackController < ApplicationController
 
       @track.updated_by = current_user.id
       @track.process_kml_path(open("#{@track.full_filename}.kml") { |f| Hpricot(f) })
+
       # go look up ele data, create chart, store it
       @track.process_ele
     rescue Errno::ENOENT
