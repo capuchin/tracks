@@ -698,3 +698,11 @@ p.form_buttons {
   background-position:0 0;
   padding-left:30px;
 }
+
+img.grade {
+float: left;
+position: relative;
+top: -7px;
+margin-bottom: -8px;
+height: 27px; /* no width, since it varies */
+}

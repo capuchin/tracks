@@ -19,7 +19,8 @@
 
 <% if @track.track_grade %>
 <div class="left"><p>Grade</p></div>
-<div class="right"><p><%= @track.track_grade.name + h(@track.grade_note) %></p></div>
+<div class="right"><p><a href="http://tracks.org.nz/faq#faq_4"><img class="grade" src="/images/<%= @track.track_grade.name.downcase %>.png" alt="<%= @track.track_grade.name %>" />&nbsp;<%= @track.track_grade.name
+%></a> <%= h(@track.grade_note) %></p></div>
 <% end %>
 
 <% if @track.track_access %>
