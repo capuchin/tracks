@@ -59,7 +59,9 @@ function setupMap() {
   // ovMap = new GOverviewMapControl(new GSize(100,80));
   // map.addControl(ovMap);
   // ovMap.hide(true);
-	map.addControl(new FullScreenControl());
+	if (document.URL.indexOf('/track/') > 0) {
+		map.addControl(new FullScreenControl()); // only display fullscreen control on track pages
+	}
 }
 
 function resetMap() { // Restore the map to the default settings.
