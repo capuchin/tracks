@@ -440,7 +440,7 @@ class Track < ActiveRecord::Base
   end
 
   def self.get_markers(area_id)
-    find(:all, :conditions => ["area_id = ? AND zoom != 0", area_id], :select => 'latitude, longitude, name, id').collect { |t| [t.latitude, t.longitude, t.name, t.id] }
+    find(:all, :conditions => ["area_id = ? AND zoom != 0", area_id], :select => 'latitude, longitude, name, id, track_grade_id').collect { |t| [t.latitude, t.longitude, t.name, t.id, t.track_grade_id] }
   end
 
   def self.length_summary(area_ids)

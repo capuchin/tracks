@@ -204,7 +204,7 @@ function addMarkers(pageType)
 {  // all the markers for a page using pre-setup markers var
   for (var i = 0; i <= markers.length - 1; i++)
   {
-    map.addOverlay(createMarker(new GLatLng(markers[i].lat, markers[i].lng), {title:markers[i].name, icon:icon}, "/" + pageType + "/show/" + markers[i].id))
+    map.addOverlay(createMarker(new GLatLng(markers[i].lat, markers[i].lng), {title:markers[i].name, icon:getIcon(markers[i].grade)}, "/" + pageType + "/show/" + markers[i].id))
   }
 }
 
@@ -215,14 +215,34 @@ function createMarker(point,opts,url)
   return marker;
 }
 
-function getIcon()
-{  // shared icon style for Regions and Areas
+function getIcon(grade) {
   icon = new GIcon();
-  icon.image = "http://tracks.org.nz/images/mm_20_orange.png";
-  icon.shadow = "http://tracks.org.nz/images/mm_20_shadow.png";
-  icon.iconSize = new GSize(12, 20);
-  icon.shadowSize = new GSize(22, 20);
+  icon.image = "/images/"+ convertGrade(grade) +".png";
+  icon.shadow = "/images/"+ convertGrade(grade) +"-shadow.png";
+  icon.iconSize = new GSize(16, 16);
+  icon.shadowSize = new GSize(32, 16);
+	if (grade == 6) { // extreme icon is wider
+		icon.iconSize = new GSize(32, 16); 
+		icon.shadowSize = new GSize(52, 16);
+	}
   icon.iconAnchor = new GPoint(6, 20);
   icon.infoWindowAnchor = new GPoint(5, 1);
   return icon;
+}
+
+function convertGrade(grade_num) {
+	switch (grade_num) {
+		case 1:
+			return 'beginner-marker';						
+		case 2:
+			return 'easy';
+		case 3:
+			return 'intermediate';
+		case 4:
+			return 'advanced';
+		case 5:
+			return 'expert';
+		case 6:
+			return 'extreme';
+	} 
 }

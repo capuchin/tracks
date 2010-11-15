@@ -5,7 +5,7 @@
 <script type="text/javascript">
 //<![CDATA[
 <% @markers.each do |marker| -%>
-markers.push({lat:<%=marker[0].to_s%>, lng:<%=marker[1].to_s%>, name:"<%=marker[2]%>", id:<%=marker[3].to_s%>});
+markers.push({lat:<%=marker[0].to_s%>, lng:<%=marker[1].to_s%>, name:"<%=marker[2]%>", id:<%=marker[3].to_s%>, grade:<%=marker[4].to_s%>});
 <%- end %>
 //]]>
 </script>
