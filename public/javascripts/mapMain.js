@@ -233,7 +233,7 @@ function getIcon(grade) {
 function convertGrade(grade_num) {
 	switch (grade_num) {
 		case 1:
-			return 'beginner-marker';						
+			return 'beginner';						
 		case 2:
 			return 'easy';
 		case 3:
