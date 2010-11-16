@@ -36,6 +36,8 @@ function setupMap() {
   // ovMap = new GOverviewMapControl(new GSize(100,80));
   // map.addControl(ovMap);
   // ovMap.hide(true);
+
+	map.addControl(new FullScreenControl());
 }
 
 function setupMapForShow() {

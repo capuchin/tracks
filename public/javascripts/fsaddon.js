@@ -40,8 +40,12 @@ FullScreenControl.prototype.initialize = function(map)
       map.savePosition();  // save the current map view, for restoration after changing the map's size
       if(mapFullScreen)
       {  // Revert to normal map display
-         document.getElementById("currTrackSelection").style.position = "absolute";  // Re-position track mouseover information display
-         document.getElementById("labelContainer").style.position = "relative";
+				 if (document.getElementById("currTrackSelection") != null) {
+           document.getElementById("currTrackSelection").style.position = "relative";  // Re-position track mouseover information display
+				 }
+				 if (document.getElementById("labelContainer") != null) {
+           document.getElementById("labelContainer").style.position = "absolute";
+				 }
          $(mapNode.id).style.width = originalWidth + "px";                           // Restore the map to its original size and position
          $(mapNode.id).style.height = originalHeight + "px";
          $(mapNode.id).style.position = "relative";
@@ -55,8 +59,12 @@ FullScreenControl.prototype.initialize = function(map)
       {  // Switch to full screen map display
          originalWidth = parseInt(document.getElementById("map").offsetWidth) - 2;   // Note the original map size, so it can be restored later
          originalHeight = parseInt(document.getElementById("map").offsetHeight) - 2; // Though need to subtract the border width
-         document.getElementById("currTrackSelection").style.position = "relative";  // Re-position track mouseover information display
-         document.getElementById("labelContainer").style.position = "absolute";
+				 if (document.getElementById("currTrackSelection") != null) {
+           document.getElementById("currTrackSelection").style.position = "relative";  // Re-position track mouseover information display
+				 }
+				 if (document.getElementById("labelContainer") != null) {
+           document.getElementById("labelContainer").style.position = "absolute";
+				 }
          $(mapNode.id).style.position = "absolute";                                  // Switch to full screen map
          $(mapNode.id).style.width = "100%";
          $(mapNode.id).style.height = "100%";
